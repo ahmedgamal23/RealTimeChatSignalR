@@ -6,7 +6,7 @@
 ## 📌 Overview
 **RealTimeChatSignalR** is a modern web-based chat application that allows users to communicate instantly using **ASP.NET Core** and **SignalR**. This project demonstrates how to implement real-time messaging in a scalable and efficient way.
 
-![RealTime Chat](assets/chat_demo.png)  
+![Screenshot (600)](https://github.com/user-attachments/assets/ac52aaa6-e0d9-46a8-803d-8064f1bdb1b6)
 
 ## 🎯 Features
 - 🔹 **Real-time messaging** using SignalR WebSockets
