@@ -1,0 +1,151 @@
+﻿@model IEnumerable<ApplicationUser>
+
+@{
+    ViewData["Title"] = "Home Page";
+}
+
+<partial name="_StatusMessage" model="@ViewData["StatusMessage"]" />
+
+<div class="mt-4 chat-container">
+    <div class="row">
+        <!-- Chat List Section -->
+        <div class="col-md-3 chat-list">
+            @foreach (var item in Model)
+            {
+                <div class="chat-card" data-userid="@item.Id" data-username="@item.DisplayName">
+                    <div class="chat-card-main">
+                        @if (item.ImageUrl != null && item.ImageUrl.Length > 0)
+                        {
+                            <img class="chat-card-img" src="data:image/jpg;base64,@Convert.ToBase64String(item.ImageUrl)" alt="Chat" />
+                        }
+                        else
+                        {
+                            <img class="chat-card-img" src="~/ImagesMaterial/default-user.png" alt="Chat" />
+                        }
+
+                        <div class="chat-card-content">
+                            <h6>@item.DisplayName</h6>
+                            <p>Hey, how are you?</p>
+                        </div>
+                    </div>
+                    <div class="card-chat-time">
+                        <p>10:30 AM</p>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Chat Messages Section -->
+        <div class="col-md-9 chat-msg-content" style="display: none;">
+            <div class="msgs-area">
+                <ul id="messagesList"></ul>
+            </div>
+
+            <div class="chat-inputs">
+                <input type="text" id="messageInput" placeholder="Enter your message..." />
+                <button id="sendButton">Send</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
+<script>
+    let selectedUserId = null;
+    let selectedUserName = null;
+    const date = new Date();
+    const messageList = document.getElementById("messagesList");
+
+    document.querySelectorAll(".chat-card").forEach(card => {
+        // fetch unread messages
+        let UserId = card.getAttribute("data-userid");
+        fetch(`/Home/GetUnReadMessages`)
+        .then(response => response.json())
+        .then(messages => {
+            messages.forEach(msg => {
+                if(msg.senderId ===  UserId){
+                    let unreadIndicator = document.createElement("div");
+                    unreadIndicator.classList.add("unread-indicator");
+                    unreadIndicator.textContent = msg.unreadCount; // Initial unread count
+                    card.appendChild(unreadIndicator);
+                }
+            } )
+        } );
+
+        card.addEventListener("click", function () {
+            selectedUserId = this.getAttribute("data-userid");
+            selectedUserName = this.getAttribute("data-username");
+
+            document.getElementById("sendButton").setAttribute("data-receiverid", selectedUserId);
+            document.querySelector(".chat-msg-content").style.display = 'flex';
+
+            // Clear previous messages
+            messageList.innerHTML = "";
+
+            // Load previous messages AJAX (fetch from controller)
+            fetch(`/Home/GetMessages?userId=${selectedUserId}`)
+                .then(response => response.json())
+                .then(messages => {
+                    messages.forEach(msg => {
+                        let li = document.createElement("li");
+                        li.innerHTML = `<span style="font-weight: bold; color: blue;">${msg.senderName}</span>: ${msg.message} <br> ${msg.timestamp}`;
+                        li.className = msg.senderId === selectedUserId ? 'receiver' : 'sent';
+                        messageList.appendChild(li);
+                    });
+                    // Remove unread indicator
+                    card.querySelector(".unread-indicator")?.remove();
+                }).catch(err => console.error("Error loading messages:", err));
+        });
+    });
+
+    // Initialize SignalR connection
+    var connection = new signalR.HubConnectionBuilder().withUrl("/chatHub").build();
+
+    connection.start()
+        .then(() => console.log("Connected to SignalR hub"))
+        .catch(err => console.error("Connection error:", err.toString()));
+
+    // Send message
+    document.getElementById("sendButton").addEventListener("click", function () {
+        let message = document.getElementById("messageInput").value.trim();
+        if (message && selectedUserId) {
+            connection.invoke("SendMessageToUser", selectedUserId, message)
+                .then(() => {
+                    let li = document.createElement("li");
+                    li.innerHTML = `<span style="font-weight: bold; color: blue;">You</span>: ` + message + `<br>` + date.getHours() + `:` + date.getMinutes() + `:` + date.getSeconds();
+                    li.className = 'sent';
+                    messageList.appendChild(li);
+                    document.getElementById("messageInput").value = '';
+                }).catch(err => console.error("Invoke error:", err.toString()));
+        } else {
+            console.error("User or message is empty!");
+        }
+    });
+
+
+    connection.on("ReceiveMessage", function (senderId, message) {
+        let chatCard = document.querySelector(`.chat-card[data-userid="${senderId}"]`);
+
+        if (senderId === selectedUserId) {
+            // If the active chat is open, append the message
+            let li = document.createElement("li");
+            li.innerHTML = `<span style="font-weight: bold; color: blue;">${selectedUserName}</span>: ` + message + `<br>` + new Date().toLocaleTimeString();
+            li.className = 'receiver';
+            messageList.appendChild(li);
+        } else {
+            // Update unread messages count
+            if (chatCard) {
+                let unreadIndicator = chatCard.querySelector(".unread-indicator");
+                if (!unreadIndicator) {
+                    unreadIndicator = document.createElement("div");
+                    unreadIndicator.classList.add("unread-indicator");
+                    unreadIndicator.textContent = "1"; // Initial unread count
+                    chatCard.appendChild(unreadIndicator);
+                } else {
+                    unreadIndicator.textContent = parseInt(unreadIndicator.textContent) + 1;
+                }
+            }
+        }
+    });
+
+</script>

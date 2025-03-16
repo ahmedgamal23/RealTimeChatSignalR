@@ -1,0 +1,9 @@
+﻿
+
+==================== Chat App Structure ====================
+
+:> Relationships Between Models:
+
+One-to-One Chat → Chat with two users.
+Group Chat → Chat with multiple users using ChatUser.
+Messages → Stored in Message table, linked to Chat and ApplicationUser.
