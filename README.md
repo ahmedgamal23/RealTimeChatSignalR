@@ -1,5 +1,3 @@
-# RealTimeChatSignalR
-
 # RealTimeChatSignalR 🚀
 
 ![RealTime Chat](assets/chat_demo.png)  
