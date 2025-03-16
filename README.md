@@ -17,13 +17,13 @@
 - 🔹 **Responsive UI** with Bootstrap & JavaScript
 
 ## 🏗️ Tech Stack
-- **Backend:** ASP.NET Core 8, SignalR, Entity Framework Core
+- **Backend:** ASP.NET Core 9, SignalR, Entity Framework Core
 - **Frontend:** HTML, CSS, JavaScript, Bootstrap
 - **Database:** SQL Server
 - **Authentication:** ASP.NET Identity
 
 ## 📡 What is SignalR?
-[SignalR](https://dotnet.microsoft.com/en-us/apps/aspnet/signalr) is a real-time communication library in ASP.NET that enables **bi-directional communication** between clients and servers. It supports:
+- is a real-time communication library in ASP.NET that enables **bi-directional communication** between clients and servers. It supports:
 
 - **WebSockets** (preferred for performance)
 - **Server-Sent Events (SSE)**
@@ -60,18 +60,33 @@ Navigate to `http://localhost:5000` in your browser.
 ```csharp
 public class ChatHub : Hub
 {
-    public async Task SendMessage(string user, string message)
+    public async Task SendMessageToAll(string message, string ConnectionId)
     {
-        await Clients.All.SendAsync("ReceiveMessage", user, message);
+        await Clients.All.SendAsync("ReceiveMessage", message);
+    }
+
+    public async Task SendMessageToUser(string receiverId, string message)
+    {
+        var senderId = Context.UserIdentifier;
+    
+        // save the message to the database
+        var chatMessage = new ChatMessage
+        {
+            SenderId = senderId!,
+            ReceiverId = receiverId,
+            Message = message,
+            Timestamp = DateTime.Now,
+            IsRead = false
+        };
+    
+        await _context.ChatMessages.AddAsync(chatMessage);
+        await _context.SaveChangesAsync();
+    
+        if (_connections.TryGetValue(receiverId, out string? receiverConnectionId))
+        {
+            await Clients.Client(receiverConnectionId).SendAsync("ReceiveMessage", senderId, message);
+        }
     }
 }
 ```
 
-## 💡 Contributing
-Pull requests are welcome! If you'd like to contribute, please fork the repository and submit a PR.
-
-## 📜 License
-This project is licensed under the **MIT License**.
-
----
-🌟 **Let's build real-time apps together!** Feel free to ⭐ this repo if you find it useful! 😊
